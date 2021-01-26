@@ -7,9 +7,9 @@ Imports Microsoft.Office.Interop.Excel
 Imports Microsoft.Office.Interop.Word
 Public Class Form1
 
-    Dim app As Microsoft.Office.Interop.Excel.Application = New Microsoft.Office.Interop.Excel.Application
+    ReadOnly app As Microsoft.Office.Interop.Excel.Application = New Microsoft.Office.Interop.Excel.Application
 
-    Dim wApp As Microsoft.Office.Interop.Word.Application = New Microsoft.Office.Interop.Word.Application
+    ReadOnly wApp As Microsoft.Office.Interop.Word.Application = New Microsoft.Office.Interop.Word.Application
 
     Private ReadOnly wf = app.WorksheetFunction
     Function FlipNames(MyString As Object)
@@ -87,7 +87,7 @@ Public Class Form1
         '
         '
         Dim errln As Integer = 0
-        Dim x, y As Integer
+        Dim y As Integer = 0
         Dim jc As String = Nothing
         Dim store_name, fromDate, thruDate As String
         Dim objWord, objDoc, objExport As Document
@@ -126,6 +126,7 @@ Public Class Form1
         Dim unit, businessDate, sales, shift, jobtitles, employees, startTime, endTime, station As Integer
         Dim countAM As Integer = 0
         Dim countPM As Integer = 0
+        Dim max_days As Integer = 0
 
         Dim watch As New Stopwatch
 
@@ -235,14 +236,14 @@ Public Class Form1
 
         Dim dayLast As Date = Me.DateTimePicker2.Value
 
-        y = dt.Rows.Count
+        y = dt.Rows.Count - 1
 
 
         watch.Stop()
 
         Dim timerresult = Watch.ElapsedMilliseconds / 1000
 
-        MsgBox(y & " " & store_name & " " & daystotal & " " & timerresult)
+        'MsgBox(y & " " & store_name & " " & daystotal & " " & timerresult)
 
 
 
@@ -330,35 +331,42 @@ Public Class Form1
         ' populate an array containing row numbers which indicate the starting row number for each PM shift in the report
         ' where ii is the value for the day index in the report
 
-
-        i = 1 ' iterate dates
+        max_days = daystotal - 1
+        i = 0 ' iterate dates
         ii = 0 ' iterate AM/PM splits
-        iii = 0
-        iiii = 0
-        iiiii = 0
+        ' iii = 0
+        ' iiii = 0
+        ' iiiii = 0
         Dim max_row As Integer = 0
-        Dim e_name As String
-        Dim next_e_name As String
+        Dim e_name As String = Nothing
+        Dim next_e_name As String = Nothing
+        Dim row_num As Integer = 1
+        Dim next_row As Integer = 0
         ReDim d_jcode(y), n_jcode(y), d_emp(y), n_emp(y), d_station(y), n_station(y), d_start(y), n_start(y), d_end(y), n_end(y)
 
-        For row_num As Integer = 1 To y - 1
+        For row_num = 1 To y
+
+            next_row = row_num + 1
+
+            If next_row <= y Then
+
+                If Convert.ToDateTime(dt.Rows(next_row).Item(businessDate)) > Convert.ToDateTime(dt.Rows(row_num).Item(businessDate)) Then
+
+                    date_row(i) = next_row
+
+                    i += 1
 
 
 
+                End If
 
-            If Convert.ToDateTime(dt.Rows(row_num).Item(businessDate)) > Convert.ToDateTime(dt.Rows(row_num - 1).Item(businessDate)) Then
+                If dt.Rows(next_row).Item(shift).ToString = "PM" And dt.Rows(row_num).Item(shift).ToString = "AM" Then
 
-                date_row(i) = row_num
+                    shift_row(ii) = next_row
 
-                i += 1
+                    ii += 1
 
-            End If
-
-            If dt.Rows(row_num).Item(shift).ToString = "PM" And dt.Rows(row_num - 1).Item(shift).ToString = "AM" Then
-
-                shift_row(ii) = row_num
-
-                ii += 1
+                End If
 
             End If
 
@@ -367,30 +375,33 @@ Public Class Form1
         '
         '
 
+        'max_row = date_row(iii + 1)
+
+        'max_row -= 1
 
 
         errln = 372
 
-        For iii = 0 To (daystotal - 1) ' for each day of the week
+
+
+        For iii = 0 To max_days ' for each day of the week
+
+            next_row = date_row(iii + 1) - 1
 
             i = 0
 
             ii = 0
 
 
-            If iii = (daystotal - 1) Then
+            If iii.Equals(max_days) Then
 
-                max_row = (y - 1)
-
-            Else
-
-                max_row = (date_row(iii + 1) - 1)
+                max_row = y
 
             End If
 
 
 
-            r = Int(date_row(iii))
+            r = date_row(iii)
 
             For row_num = Int(date_row(iii)) To max_row
 
@@ -408,6 +419,7 @@ Public Class Form1
 
                     On Error Resume Next
                     jobcodes.Add("AM" & jc, "AM" & jc)
+                    On Error GoTo 0
                     '
                     '
                     'populate AM shift info
@@ -438,7 +450,13 @@ Public Class Form1
 
                 End If
                 errln = 435
-                On Error GoTo errors
+                On Error GoTo 0
+
+                If r > max_row Then
+
+                    Continue For
+
+                End If
 
                 If r >= shift_row(iii) Then
 
@@ -447,6 +465,7 @@ Public Class Form1
 
                     On Error Resume Next
                     jobcodes.Add("PM" & jc, "PM" & jc)
+                    On Error GoTo 0
                     ' 
                     '
                     'populate PM shift info
@@ -460,14 +479,17 @@ Public Class Form1
 
                     n_end(ii) = Convert.ToDateTime(dt.Rows(r).Item(endTime)).ToString("h:mm tt")
 
+                    If r < y Then
 
-                    If dt.Rows(r).Item(employees).ToString = dt.Rows(r + 1).Item(employees).ToString And dt.Rows(r).Item(endTime).ToString = dt.Rows(r + 1).Item(startTime).ToString Then
+                        If dt.Rows(r).Item(employees).ToString = dt.Rows(r + 1).Item(employees).ToString And dt.Rows(r).Item(endTime).ToString = dt.Rows(r + 1).Item(startTime).ToString Then
 
-                        n_end(ii) = Convert.ToDateTime(dt.Rows(r + 1).Item(endTime)).ToString("h:mm tt")
+                            n_end(ii) = Convert.ToDateTime(dt.Rows(r + 1).Item(endTime)).ToString("h:mm tt")
 
-                        n_station(ii) = n_station(ii) & " / " & dt.Rows(r + 1).Item(station).ToString
+                            n_station(ii) = n_station(ii) & " / " & dt.Rows(r + 1).Item(station).ToString
 
-                        r += 1
+                            r += 1
+
+                        End If
 
                     End If
 
@@ -477,7 +499,7 @@ Public Class Form1
 
                 End If
                 errln = 474
-                On Error GoTo errors
+                'On Error GoTo errors
             Next
 
 
@@ -498,12 +520,12 @@ Public Class Form1
 
                 .Application.Selection.Find.Text = "<<DAY>>"
                 .Application.Selection.Find.Execute()
-                .Application.Selection.Text = DateAdd("d", iii, dayStart).DayOfWeek.ToString
+                .Application.Selection.Text = DateAdd("d", Convert.ToDouble(iii), dayStart).DayOfWeek.ToString
                 .Application.Selection.EndOf()
 
                 .Application.Selection.Find.Text = "<<DATE>>"
                 .Application.Selection.Find.Execute()
-                .Application.Selection.Text = DateAdd("d", iii, dayStart).ToShortDateString
+                .Application.Selection.Text = DateAdd("d", Convert.ToDouble(iii), dayStart).ToShortDateString
                 .Application.Selection.EndOf()
 
                 .Application.Selection.Find.Text = "<<SALES_FORECAST>>"
@@ -539,7 +561,7 @@ Public Class Form1
                     If iiii <= countAM Then
 
 
-                        .Application.Selection.Find.Execute(FindText:="<<D_JOB_CODE_" & CStr(i) & ">>", Wrap:=WdFindWrap.wdFindContinue)
+                        .Application.Selection.Find.Execute(FindText:="<<D_JOB_CODE_" & CStr(iiii) & ">>", Wrap:=WdFindWrap.wdFindContinue)
 
                         .Application.Selection.Text = Microsoft.VisualBasic.Right(jobcodes.Item(iiii).ToString, Len(jobcodes.Item(iiii).ToString) - 2)
 
@@ -558,7 +580,7 @@ Public Class Form1
                             End If
 
 
-                            .Application.Selection.Find.Execute(FindText:="<<D_EMP" & CStr(r) & ">>", Wrap:=WdFindWrap.wdFindContinue)
+                            .Application.Selection.Find.Execute(FindText:="<<D_EMP" & CStr(iiii) & ">>", Wrap:=WdFindWrap.wdFindContinue)
 
                             .Application.Selection.Text = emp
 
@@ -588,7 +610,7 @@ Public Class Form1
                     If iiii <= countPM Then
 
 
-                        .Application.Selection.Find.Execute(FindText:="<<N_JOB_CODE_" & CStr(i) & ">>", Wrap:=WdFindWrap.wdFindContinue)
+                        .Application.Selection.Find.Execute(FindText:="<<N_JOB_CODE_" & CStr(iiii) & ">>", Wrap:=WdFindWrap.wdFindContinue)
 
                         .Application.Selection.Text = Microsoft.VisualBasic.Right(jobcodes.Item(iiii).ToString, Len(jobcodes.Item(iiii).ToString) - 2)
 
@@ -606,7 +628,7 @@ Public Class Form1
                             End If
 
 
-                            .Application.Selection.Find.Execute(FindText:="<<N_EMP" & CStr(r) & ">>", Wrap:=WdFindWrap.wdFindContinue)
+                            .Application.Selection.Find.Execute(FindText:="<<N_EMP" & CStr(iiii) & ">>", Wrap:=WdFindWrap.wdFindContinue)
 
                             .Application.Selection.Text = emp
 
@@ -675,6 +697,7 @@ Public Class Form1
 
 
             End With
+
             errln = 673
 
             progPcnt += ((30) / daystotal)
