@@ -118,7 +118,6 @@ Public Class Form1
         Dim n_emp() As String = Nothing
         Dim thisWb As Workbook = Nothing
         Dim copyWb As Workbook = Nothing
-        Dim jobcodes As New Collection
         Dim r As Integer = 0
         Dim rng As Microsoft.Office.Interop.Excel.Range
         Dim date_row() As Integer = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
@@ -334,14 +333,14 @@ Public Class Form1
         max_days = daystotal - 1
         i = 0 ' iterate dates
         ii = 0 ' iterate AM/PM splits
-        ' iii = 0
-        ' iiii = 0
-        ' iiiii = 0
+        iii = 0
+        iiii = 0
         Dim max_row As Integer = 0
         Dim e_name As String = Nothing
         Dim next_e_name As String = Nothing
         Dim row_num As Integer = 1
         Dim next_row As Integer = 0
+        date_row(0) = 0
         ReDim d_jcode(y), n_jcode(y), d_emp(y), n_emp(y), d_station(y), n_station(y), d_start(y), n_start(y), d_end(y), n_end(y)
 
         For row_num = 1 To y
@@ -386,11 +385,15 @@ Public Class Form1
 
         For iii = 0 To max_days ' for each day of the week
 
-            next_row = date_row(iii + 1) - 1
+            max_row = date_row(iii + 1) - 1
 
             i = 0
 
             ii = 0
+
+            iiiii = 1
+
+            Dim jobcodes As Dictionary(Of String, Integer) = New Dictionary(Of String, Integer)
 
 
             If iii.Equals(max_days) Then
@@ -409,97 +412,105 @@ Public Class Form1
 
                     Continue For
 
-                End If
+                Else
 
-                ' for each row in AM shift
+                    ' for each row in AM shift
 
-                If r < shift_row(iii) Then
-                    'populate AM job codes list
-                    jc = dt.Rows(r).Item(jobtitles).ToString
+                    If r < shift_row(iii) Then
+                        'populate AM job codes list
+                        jc = dt.Rows(r).Item(jobtitles).ToString
+                        On Error Resume Next
+                        If Not jobcodes.TryGetValue("PM" & jc, iiiii) Then
+                            jobcodes("AM" & jc) = iiiii
+                            iiiii += 1
+                            On Error GoTo 0
+                        End If
+                        '
+                        '
+                        'populate AM shift info
+                        d_jcode(i) = jc
 
-                    On Error Resume Next
-                    jobcodes.Add("AM" & jc, "AM" & jc)
-                    On Error GoTo 0
-                    '
-                    '
-                    'populate AM shift info
-                    d_jcode(i) = jc
+                        d_emp(i) = dt.Rows(r).Item(employees).ToString
 
-                    d_emp(i) = dt.Rows(r).Item(employees).ToString
+                        d_station(i) = dt.Rows(r).Item(station).ToString
 
-                    d_station(i) = dt.Rows(r).Item(station).ToString
+                        d_start(i) = Convert.ToDateTime(dt.Rows(r).Item(startTime)).ToString("h:mmtt")
 
-                    d_start(i) = Convert.ToDateTime(dt.Rows(r).Item(startTime)).ToString("h:mm tt")
+                        d_end(i) = Convert.ToDateTime(dt.Rows(r).Item(endTime)).ToString("h:mmtt")
 
-                    d_end(i) = Convert.ToDateTime(dt.Rows(r).Item(endTime)).ToString("h:mm tt")
-
-
-                    If dt.Rows(r).Item(employees).ToString = dt.Rows(r + 1).Item(employees).ToString And dt.Rows(r).Item(endTime).ToString = dt.Rows(r + 1).Item(startTime).ToString Then
-
-                        d_end(i) = Convert.ToDateTime(dt.Rows(r + 1).Item(endTime)).ToString("h:mm tt")
-
-                        d_station(i) = d_station(i) & " / " & dt.Rows(r + 1).Item(station).ToString
-
-                        r += 1
-
-                    End If
-
-                    r += 1
-
-                    i += 1
-
-                End If
-                errln = 435
-                On Error GoTo 0
-
-                If r > max_row Then
-
-                    Continue For
-
-                End If
-
-                If r >= shift_row(iii) Then
-
-                    'populate PM job codes list
-                    jc = dt.Rows(r).Item(jobtitles).ToString
-
-                    On Error Resume Next
-                    jobcodes.Add("PM" & jc, "PM" & jc)
-                    On Error GoTo 0
-                    ' 
-                    '
-                    'populate PM shift info
-                    n_jcode(ii) = jc
-
-                    n_emp(ii) = dt.Rows(r).Item(employees).ToString
-
-                    n_station(ii) = dt.Rows(r).Item(station).ToString
-
-                    n_start(ii) = Convert.ToDateTime(dt.Rows(r).Item(startTime)).ToString("h:mm tt")
-
-                    n_end(ii) = Convert.ToDateTime(dt.Rows(r).Item(endTime)).ToString("h:mm tt")
-
-                    If r < y Then
 
                         If dt.Rows(r).Item(employees).ToString = dt.Rows(r + 1).Item(employees).ToString And dt.Rows(r).Item(endTime).ToString = dt.Rows(r + 1).Item(startTime).ToString Then
 
-                            n_end(ii) = Convert.ToDateTime(dt.Rows(r + 1).Item(endTime)).ToString("h:mm tt")
+                            d_end(i) = Convert.ToDateTime(dt.Rows(r + 1).Item(endTime)).ToString("h:mmtt")
 
-                            n_station(ii) = n_station(ii) & " / " & dt.Rows(r + 1).Item(station).ToString
+                            d_station(i) = d_station(i) & "/" & dt.Rows(r + 1).Item(station).ToString
 
                             r += 1
 
                         End If
 
+                        r += 1
+
+                        i += 1
+
+                    End If
+                    errln = 435
+
+
+
+                    If r >= shift_row(iii) Then
+
+                        'populate PM job codes list
+                        jc = dt.Rows(r).Item(jobtitles).ToString
+
+                        On Error Resume Next
+                        If Not jobcodes.TryGetValue("PM" & jc, iiiii) Then
+                            jobcodes("PM" & jc) = iiiii
+                            iiiii += 1
+                            On Error GoTo 0
+                        End If
+                        ' 
+                        '
+                        'populate PM shift info
+                        n_jcode(ii) = jc
+
+                        n_emp(ii) = dt.Rows(r).Item(employees).ToString
+
+                        n_station(ii) = dt.Rows(r).Item(station).ToString
+
+                        n_start(ii) = Convert.ToDateTime(dt.Rows(r).Item(startTime)).ToString("h:mmtt")
+
+                        n_end(ii) = Convert.ToDateTime(dt.Rows(r).Item(endTime)).ToString("h:mmtt")
+
+
+                        If r < y Then
+
+
+                            If dt.Rows(r).Item(employees).ToString = dt.Rows(r + 1).Item(employees).ToString And dt.Rows(r).Item(endTime).ToString = dt.Rows(r + 1).Item(startTime).ToString Then
+
+                                n_end(ii) = Convert.ToDateTime(dt.Rows(r + 1).Item(endTime)).ToString("h:mmtt")
+
+                                n_station(ii) = n_station(ii) & "/" & dt.Rows(r + 1).Item(station).ToString
+
+                                r += 1
+
+                            End If
+
+
+                        End If
+
+
+                        r += 1
+
+                        ii += 1
+
+
                     End If
 
-                    r += 1
-
-                    ii += 1
+                    errln = 474
 
                 End If
-                errln = 474
-                'On Error GoTo errors
+
             Next
 
 
@@ -530,17 +541,18 @@ Public Class Form1
 
                 .Application.Selection.Find.Text = "<<SALES_FORECAST>>"
                 .Application.Selection.Find.Execute()
-                .Application.Selection.Text = dt.Rows(date_row(iii)).Item(sales).ToString
+                .Application.Selection.Text = Format(dt.Rows(date_row(iii)).Item(sales), "0,000")
                 .Application.Selection.EndOf()
                 errln = 508
 
                 countAM = 0
 
                 countPM = 0
-                On Error GoTo 0
-                For Each kvp As KeyValuePair(Of String, String) In jobcodes
 
-                    If Microsoft.VisualBasic.Left(kvp.Value, 2) = "AM" Then
+
+                For Each kvp As KeyValuePair(Of String, Integer) In jobcodes
+
+                    If Microsoft.VisualBasic.Left(kvp.Key, 2) = "AM" Then
 
                         countAM += 1
                     Else
@@ -553,111 +565,119 @@ Public Class Form1
                 On Error GoTo errors
                 errln = 527
 
-                Dim emp As String = Nothing
+                Dim emp As String = ""
 
-                For iiii = 1 To 8
+
+                For iiii = 1 To countAM
 
 
                     If iiii <= countAM Then
 
 
-                        .Application.Selection.Find.Execute(FindText:="<<D_JOB_CODE_" & CStr(iiii) & ">>", Wrap:=WdFindWrap.wdFindContinue)
-
-                        .Application.Selection.Text = Microsoft.VisualBasic.Right(jobcodes.Item(iiii).ToString, Len(jobcodes.Item(iiii).ToString) - 2)
-
-                        .Application.Selection.EndOf(WdUnits.wdLine)
-
                         emp = Nothing
+
+                        iiiii = 0
 
                         For r = 0 To i
 
 
-
-                            If d_jcode(r) = Microsoft.VisualBasic.Right(jobcodes.Item(iiii).ToString, Len(jobcodes.Item(iiii).ToString) - 2) Then
+                            If d_jcode(r) = Microsoft.VisualBasic.Right(jobcodes.Keys(iiii).ToString, Len(jobcodes.Keys(iiii).ToString) - 2) Then
 
                                 emp = emp & FlipNames(d_emp(r)) & " - " & d_start(r).ToString & "-" & d_end(r).ToString & " (" & d_station(r) & ")" & vbCrLf
+
+                                iiiii += 1
 
                             End If
 
 
-                            .Application.Selection.Find.Execute(FindText:="<<D_EMP" & CStr(iiii) & ">>", Wrap:=WdFindWrap.wdFindContinue)
-
-                            .Application.Selection.Text = emp
-
-                            .Application.Selection.EndOf(WdUnits.wdLine)
-
-
                         Next
 
-                    Else
 
                         .Application.Selection.Find.Execute(FindText:="<<D_JOB_CODE_" & CStr(iiii) & ">>", Wrap:=WdFindWrap.wdFindContinue)
 
-                        .Application.Selection.Delete()
+                        .Application.Selection.Text = Microsoft.VisualBasic.Right(jobcodes.Keys(iiii).ToString, Len(jobcodes.Keys(iiii).ToString) - 2) & " (" & iiiii & ")"
 
                         .Application.Selection.EndOf(WdUnits.wdLine)
 
 
                         .Application.Selection.Find.Execute(FindText:="<<D_EMP" & CStr(iiii) & ">>", Wrap:=WdFindWrap.wdFindContinue)
 
-                        .Application.Selection.Delete()
+                        .Application.Selection.Text = emp
 
                         .Application.Selection.EndOf(WdUnits.wdLine)
 
 
                     End If
-                    errln = 582
+                Next
+
+                errln = 582
+
+                For iiii = countAM To countPM
+
                     If iiii <= countPM Then
 
 
-                        .Application.Selection.Find.Execute(FindText:="<<N_JOB_CODE_" & CStr(iiii) & ">>", Wrap:=WdFindWrap.wdFindContinue)
-
-                        .Application.Selection.Text = Microsoft.VisualBasic.Right(jobcodes.Item(iiii).ToString, Len(jobcodes.Item(iiii).ToString) - 2)
-
-                        .Application.Selection.EndOf(WdUnits.wdLine)
-
                         emp = Nothing
 
+                        iiiii = 0
 
                         For r = 0 To i
 
-                            If d_jcode(r) = Microsoft.VisualBasic.Right(jobcodes.Item(iiii).ToString, Len(jobcodes.Item(iiii).ToString) - 2) Then
+                            If n_jcode(r) = Microsoft.VisualBasic.Right(jobcodes.Keys(iiii).ToString, Len(jobcodes.Keys(iiii).ToString) - 2) Then
 
                                 emp = emp & FlipNames(n_emp(r)) & " - " & n_start(r).ToString & "-" & n_end(r).ToString & " (" & n_station(r) & ")" & vbCrLf
 
+                                iiiii += 1
+
                             End If
-
-
-                            .Application.Selection.Find.Execute(FindText:="<<N_EMP" & CStr(iiii) & ">>", Wrap:=WdFindWrap.wdFindContinue)
-
-                            .Application.Selection.Text = emp
-
-                            .Application.Selection.EndOf(WdUnits.wdLine)
-
 
                         Next
 
-                    Else
-
                         .Application.Selection.Find.Execute(FindText:="<<N_JOB_CODE_" & CStr(iiii) & ">>", Wrap:=WdFindWrap.wdFindContinue)
 
-                        .Application.Selection.Delete()
+                        .Application.Selection.Text = Microsoft.VisualBasic.Right(jobcodes.Keys(iiii).ToString, Len(jobcodes.Keys(iiii).ToString) - 2) & " (" & iiiii & ")"
 
                         .Application.Selection.EndOf(WdUnits.wdLine)
 
 
                         .Application.Selection.Find.Execute(FindText:="<<N_EMP" & CStr(iiii) & ">>", Wrap:=WdFindWrap.wdFindContinue)
 
-                        .Application.Selection.Delete()
+                        .Application.Selection.Text = emp
 
                         .Application.Selection.EndOf(WdUnits.wdLine)
 
 
+
+
                     End If
+                    .Application.Selection.Find.Execute(FindText:="<<D_JOB_CODE_" & CStr(iiii) & ">>", Wrap:=WdFindWrap.wdFindContinue)
+
+                    .Application.Selection.Delete()
+
+                    .Application.Selection.EndOf(WdUnits.wdLine)
+
+
+                    .Application.Selection.Find.Execute(FindText:="<<D_EMP" & CStr(iiii) & ">>", Wrap:=WdFindWrap.wdFindContinue)
+
+                    .Application.Selection.Delete()
+
+                    .Application.Selection.EndOf(WdUnits.wdLine)
+
+                    .Application.Selection.Find.Execute(FindText:="<<N_JOB_CODE_" & CStr(iiii) & ">>", Wrap:=WdFindWrap.wdFindContinue)
+
+                    .Application.Selection.Delete()
+
+                    .Application.Selection.EndOf(WdUnits.wdLine)
+
+
+                    .Application.Selection.Find.Execute(FindText:="<<N_EMP" & CStr(iiii) & ">>", Wrap:=WdFindWrap.wdFindContinue)
+
+                    .Application.Selection.Delete()
+
+                    .Application.Selection.EndOf(WdUnits.wdLine)
 
                     errln = 631
-                Next iiii
-
+                Next
 
                 .SaveAs(oDoc, WdSaveFormat.wdFormatDocumentDefault)
 
@@ -712,7 +732,7 @@ Public Class Form1
         Button1.Text = $"Working... {wf.Text(progPcnt, "0")}%"
 
 
-        ' objExport.ExportAsFixedFormat(TextBox2.Text, WdExportFormat.wdExportFormatPDF, OpenAfterExport:=True)
+        objExport.ExportAsFixedFormat(IO.Directory.GetCurrentDirectory, WdExportFormat.wdExportFormatPDF, OpenAfterExport:=True)
 
         objExport.Close(False)
 
@@ -723,7 +743,7 @@ Public Class Form1
         'Me.Activate()
 
 
-
+        Stop
 exitsub:
 
         Button1.Text = "GENERATE CRIB SHEET"
@@ -785,7 +805,7 @@ errors:
         MsgBox("Yikes dude, looks like something went hecka wrong. Please email mitch@rocksolidrestaurants.com right away with any details, and make sure to attach this excel file in your message. " & Err.Description & " Line #" & errln & " Err #" & Err.Number)
 
     End Sub
-    Private Sub Form1_Closing(sender As Object, e As CancelEventArgs) Handles Me.Closing
+    Private Sub Form1_Closed(sender As Object, e As EventArgs) Handles Me.Closing
 
         wApp.Quit(WdSaveOptions.wdDoNotSaveChanges)
 
