@@ -127,9 +127,9 @@ Public Class Form1
         Dim countPM As Integer = 0
         Dim max_days As Integer = 0
 
-        Dim watch As New Stopwatch
+        'Dim watch As New Stopwatch
 
-        watch.Start()
+        'Watch.Start()
 
 
         'On Error GoTo errors
@@ -184,10 +184,6 @@ Public Class Form1
 
 
 
-        'Button1.Text = $"Working... {wf.Text(progPcnt, "0")}%"
-
-        'y = pst.Cells(pst.Rows.Count, 1).End(XlDirection.xlUp).Row
-
         parm.Range("name_FromDate").Value = Me.DateTimePicker1.Value
 
         parm.Range("name_ThruDate").Value = Me.DateTimePicker2.Value
@@ -238,9 +234,9 @@ Public Class Form1
         y = dt.Rows.Count - 1
 
 
-        watch.Stop()
+        'watch.Stop()
 
-        Dim timerresult = Watch.ElapsedMilliseconds / 1000
+        'Dim timerresult = Watch.ElapsedMilliseconds / 1000
 
         'MsgBox(y & " " & store_name & " " & daystotal & " " & timerresult)
 
@@ -274,7 +270,7 @@ Public Class Form1
 
         objWord = wApp.Documents.Open(sPath)
 
-        objWord.Application.Visible = False
+        'objWord.Application.Visible = False
 
 
         progPcnt = 8
@@ -299,7 +295,7 @@ Public Class Form1
 
         objExport = wApp.Documents.Open(xDoc)
 
-        objExport.Application.Visible = False
+        'objExport.Application.Visible = False
 
 
         progPcnt = 9
@@ -331,7 +327,7 @@ Public Class Form1
         ' where ii is the value for the day index in the report
 
         max_days = daystotal - 1
-        i = 0 ' iterate dates
+        i = 1 ' iterate dates
         ii = 0 ' iterate AM/PM splits
         iii = 0
         iiii = 0
@@ -341,7 +337,7 @@ Public Class Form1
         Dim row_num As Integer = 1
         Dim next_row As Integer = 0
         date_row(0) = 0
-        ReDim d_jcode(y), n_jcode(y), d_emp(y), n_emp(y), d_station(y), n_station(y), d_start(y), n_start(y), d_end(y), n_end(y)
+
 
         For row_num = 1 To y
 
@@ -381,9 +377,13 @@ Public Class Form1
 
         errln = 372
 
+        Dim jobcodesAM As Dictionary(Of String, Integer)
+        Dim jobcodesPM As Dictionary(Of String, Integer)
 
 
         For iii = 0 To max_days ' for each day of the week
+
+            ReDim d_jcode(y), n_jcode(y), d_emp(y), n_emp(y), d_station(y), n_station(y), d_start(y), n_start(y), d_end(y), n_end(y)
 
             max_row = date_row(iii + 1) - 1
 
@@ -393,7 +393,8 @@ Public Class Form1
 
             iiiii = 1
 
-            Dim jobcodes As Dictionary(Of String, Integer) = New Dictionary(Of String, Integer)
+            jobcodesAM = New Dictionary(Of String, Integer)
+            jobcodesPM = New Dictionary(Of String, Integer)
 
 
             If iii.Equals(max_days) Then
@@ -406,7 +407,7 @@ Public Class Form1
 
             r = date_row(iii)
 
-            For row_num = Int(date_row(iii)) To max_row
+            For row_num = date_row(iii) To max_row
 
                 If r > max_row Then
 
@@ -420,8 +421,8 @@ Public Class Form1
                         'populate AM job codes list
                         jc = dt.Rows(r).Item(jobtitles).ToString
                         On Error Resume Next
-                        If Not jobcodes.TryGetValue("PM" & jc, iiiii) Then
-                            jobcodes("AM" & jc) = iiiii
+                        If Not jobcodesAM.TryGetValue(jc, iiiii) Then
+                            jobcodesAM(jc) = iiiii
                             iiiii += 1
                             On Error GoTo 0
                         End If
@@ -439,11 +440,26 @@ Public Class Form1
                         d_end(i) = Convert.ToDateTime(dt.Rows(r).Item(endTime)).ToString("h:mmtt")
 
 
-                        If dt.Rows(r).Item(employees).ToString = dt.Rows(r + 1).Item(employees).ToString And dt.Rows(r).Item(endTime).ToString = dt.Rows(r + 1).Item(startTime).ToString Then
+                        If dt.Rows(r).Item(employees).ToString = dt.Rows(r + 1).Item(employees).ToString And dt.Rows(r).Item(endTime).ToString = dt.Rows(r + 1).Item(startTime).ToString And dt.Rows(r).Item(jobtitles).ToString = dt.Rows(r + 1).Item(jobtitles).ToString Then
+
 
                             d_end(i) = Convert.ToDateTime(dt.Rows(r + 1).Item(endTime)).ToString("h:mmtt")
 
-                            d_station(i) = d_station(i) & "/" & dt.Rows(r + 1).Item(station).ToString
+
+                            If dt.Rows(r + 1).Item(station).ToString <> "" Then
+
+                                If d_station(i) <> "" Then
+
+                                    d_station(i) = d_station(i) & "/" & dt.Rows(r + 1).Item(station).ToString
+
+                                Else
+
+                                    d_station(i) = dt.Rows(r + 1).Item(station).ToString
+
+                                End If
+
+                            End If
+
 
                             r += 1
 
@@ -454,7 +470,6 @@ Public Class Form1
                         i += 1
 
                     End If
-                    errln = 435
 
 
 
@@ -464,8 +479,8 @@ Public Class Form1
                         jc = dt.Rows(r).Item(jobtitles).ToString
 
                         On Error Resume Next
-                        If Not jobcodes.TryGetValue("PM" & jc, iiiii) Then
-                            jobcodes("PM" & jc) = iiiii
+                        If Not jobcodesPM.TryGetValue(jc, iiiii) Then
+                            jobcodesPM(jc) = iiiii
                             iiiii += 1
                             On Error GoTo 0
                         End If
@@ -486,11 +501,28 @@ Public Class Form1
                         If r < y Then
 
 
-                            If dt.Rows(r).Item(employees).ToString = dt.Rows(r + 1).Item(employees).ToString And dt.Rows(r).Item(endTime).ToString = dt.Rows(r + 1).Item(startTime).ToString Then
+                            If dt.Rows(r).Item(employees).ToString = dt.Rows(r + 1).Item(employees).ToString And dt.Rows(r).Item(endTime).ToString = dt.Rows(r + 1).Item(startTime).ToString And dt.Rows(r).Item(jobtitles).ToString = dt.Rows(r + 1).Item(jobtitles).ToString Then
 
                                 n_end(ii) = Convert.ToDateTime(dt.Rows(r + 1).Item(endTime)).ToString("h:mmtt")
 
-                                n_station(ii) = n_station(ii) & "/" & dt.Rows(r + 1).Item(station).ToString
+
+                                If dt.Rows(r + 1).Item(station).ToString <> "" Then
+
+
+                                    If n_station(i) <> "" Then
+
+
+                                        n_station(ii) = n_station(ii) & "/" & dt.Rows(r + 1).Item(station).ToString
+
+                                    Else
+
+                                        n_station(i) = dt.Rows(r + 1).ItemArray(station).ToString
+
+
+                                    End If
+
+
+                                End If
 
                                 r += 1
 
@@ -507,7 +539,6 @@ Public Class Form1
 
                     End If
 
-                    errln = 474
 
                 End If
 
@@ -515,15 +546,14 @@ Public Class Form1
 
 
 
-
             objDoc = wApp.Documents.Open(iDoc)
 
 
-            objDoc.Application.Visible = False
+            'objDoc.Application.Visible = False
 
 
             With objDoc
-                errln = 488
+
                 .Application.Selection.Find.Text = "<<STORE_NAME>>"
                 .Application.Selection.Find.Execute()
                 .Application.Selection.Text = store_name
@@ -541,49 +571,45 @@ Public Class Form1
 
                 .Application.Selection.Find.Text = "<<SALES_FORECAST>>"
                 .Application.Selection.Find.Execute()
-                .Application.Selection.Text = Format(dt.Rows(date_row(iii)).Item(sales), "0,000")
+                .Application.Selection.Text = Format(dt.Rows(date_row(iii)).Item(sales), "0,000.00")
                 .Application.Selection.EndOf()
-                errln = 508
 
-                countAM = 0
+                countAM = jobcodesAM.Count - 1
 
-                countPM = 0
+                countPM = jobcodesPM.Count - 1
 
 
-                For Each kvp As KeyValuePair(Of String, Integer) In jobcodes
-
-                    If Microsoft.VisualBasic.Left(kvp.Key, 2) = "AM" Then
-
-                        countAM += 1
-                    Else
-
-                        countPM += 1
-
-                    End If
-
-                Next
-                On Error GoTo errors
-                errln = 527
 
                 Dim emp As String = ""
 
 
-                For iiii = 1 To countAM
+                For iiii = 0 To 7
 
 
                     If iiii <= countAM Then
 
 
-                        emp = Nothing
+                        emp = ""
 
                         iiiii = 0
 
-                        For r = 0 To i
+
+                        For r = 0 To i - 1
 
 
-                            If d_jcode(r) = Microsoft.VisualBasic.Right(jobcodes.Keys(iiii).ToString, Len(jobcodes.Keys(iiii).ToString) - 2) Then
+                            If d_jcode(r) = jobcodesAM.Keys(iiii).ToString Then
 
-                                emp = emp & FlipNames(d_emp(r)) & " - " & d_start(r).ToString & "-" & d_end(r).ToString & " (" & d_station(r) & ")" & vbCrLf
+                                emp = emp & FlipNames(d_emp(r)) & " - " & d_start(r).ToString & "-" & d_end(r).ToString
+
+                                If d_station(r) <> "" Then
+
+                                    emp = emp & " (" & d_station(r) & ")" & vbCrLf
+
+                                Else
+
+                                    emp &= vbCrLf
+
+                                End If
 
                                 iiiii += 1
 
@@ -595,7 +621,7 @@ Public Class Form1
 
                         .Application.Selection.Find.Execute(FindText:="<<D_JOB_CODE_" & CStr(iiii) & ">>", Wrap:=WdFindWrap.wdFindContinue)
 
-                        .Application.Selection.Text = Microsoft.VisualBasic.Right(jobcodes.Keys(iiii).ToString, Len(jobcodes.Keys(iiii).ToString) - 2) & " (" & iiiii & ")"
+                        .Application.Selection.Text = jobcodesAM.Keys(iiii).ToString & " (" & iiiii & ")"
 
                         .Application.Selection.EndOf(WdUnits.wdLine)
 
@@ -608,24 +634,49 @@ Public Class Form1
 
 
                     End If
+
+
+
+                    .Application.Selection.Find.Execute(FindText:="<<D_JOB_CODE_" & CStr(iiii) & ">>", Wrap:=WdFindWrap.wdFindContinue)
+
+                    .Application.Selection.Text = vbCrLf
+
+                    .Application.Selection.EndOf(WdUnits.wdLine)
+
+
+                    .Application.Selection.Find.Execute(FindText:="<<D_EMP" & CStr(iiii) & ">>", Wrap:=WdFindWrap.wdFindContinue)
+
+                    .Application.Selection.Delete()
+
+                    .Application.Selection.EndOf(WdUnits.wdLine)
+
                 Next
 
-                errln = 582
 
-                For iiii = countAM To countPM
+                For iiii = 0 To 7
 
                     If iiii <= countPM Then
 
-
-                        emp = Nothing
+                        emp = ""
 
                         iiiii = 0
 
-                        For r = 0 To i
 
-                            If n_jcode(r) = Microsoft.VisualBasic.Right(jobcodes.Keys(iiii).ToString, Len(jobcodes.Keys(iiii).ToString) - 2) Then
+                        For r = 0 To ii - 1
 
-                                emp = emp & FlipNames(n_emp(r)) & " - " & n_start(r).ToString & "-" & n_end(r).ToString & " (" & n_station(r) & ")" & vbCrLf
+                            If n_jcode(r) = jobcodesPM.Keys(iiii).ToString Then
+
+                                emp = emp & FlipNames(n_emp(r)) & " - " & n_start(r).ToString & "-" & n_end(r).ToString
+
+                                If n_station(r) <> "" Then
+
+                                    emp &= " (" & n_station(r) & ")" & vbCrLf
+
+                                Else
+
+                                    emp &= vbCrLf
+
+                                End If
 
                                 iiiii += 1
 
@@ -633,9 +684,10 @@ Public Class Form1
 
                         Next
 
+
                         .Application.Selection.Find.Execute(FindText:="<<N_JOB_CODE_" & CStr(iiii) & ">>", Wrap:=WdFindWrap.wdFindContinue)
 
-                        .Application.Selection.Text = Microsoft.VisualBasic.Right(jobcodes.Keys(iiii).ToString, Len(jobcodes.Keys(iiii).ToString) - 2) & " (" & iiiii & ")"
+                        .Application.Selection.Text = jobcodesPM.Keys(iiii).ToString & " (" & iiiii & ")"
 
                         .Application.Selection.EndOf(WdUnits.wdLine)
 
@@ -648,24 +700,12 @@ Public Class Form1
 
 
 
-
                     End If
-                    .Application.Selection.Find.Execute(FindText:="<<D_JOB_CODE_" & CStr(iiii) & ">>", Wrap:=WdFindWrap.wdFindContinue)
 
-                    .Application.Selection.Delete()
-
-                    .Application.Selection.EndOf(WdUnits.wdLine)
-
-
-                    .Application.Selection.Find.Execute(FindText:="<<D_EMP" & CStr(iiii) & ">>", Wrap:=WdFindWrap.wdFindContinue)
-
-                    .Application.Selection.Delete()
-
-                    .Application.Selection.EndOf(WdUnits.wdLine)
 
                     .Application.Selection.Find.Execute(FindText:="<<N_JOB_CODE_" & CStr(iiii) & ">>", Wrap:=WdFindWrap.wdFindContinue)
 
-                    .Application.Selection.Delete()
+                    .Application.Selection.Text = vbCrLf
 
                     .Application.Selection.EndOf(WdUnits.wdLine)
 
@@ -676,7 +716,7 @@ Public Class Form1
 
                     .Application.Selection.EndOf(WdUnits.wdLine)
 
-                    errln = 631
+
                 Next
 
                 .SaveAs(oDoc, WdSaveFormat.wdFormatDocumentDefault)
@@ -705,7 +745,7 @@ Public Class Form1
                 My.Computer.FileSystem.DeleteFile(oDoc)
 
 
-                If iii < daystotal Then
+                If iii < max_days Then
 
 
                     .Application.Selection.InsertBreak(WdBreakType.wdPageBreak)
@@ -718,9 +758,8 @@ Public Class Form1
 
             End With
 
-            errln = 673
 
-            progPcnt += ((30) / daystotal)
+            progPcnt += ((90) / daystotal)
 
             Button1.Text = $"Working... {wf.Text(progPcnt, "0")}%"
 
@@ -743,7 +782,7 @@ Public Class Form1
         'Me.Activate()
 
 
-        Stop
+
 exitsub:
 
         Button1.Text = "GENERATE CRIB SHEET"
