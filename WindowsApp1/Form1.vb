@@ -1,5 +1,7 @@
 ﻿Option Explicit On
 Imports System.ComponentModel
+Imports System.Data.OleDb
+Imports System.Linq
 Imports System.Runtime.InteropServices
 Imports Microsoft.Office.Interop.Excel
 Imports Microsoft.Office.Interop.Word
@@ -49,13 +51,44 @@ Public Class Form1
 
 
     End Function
+    Private Function ReadExcelFile(sheetname As String, path As String) As Data.DataTable
+
+
+        Using conn As New OleDb.OleDbConnection()
+
+            Dim dt As New Data.DataTable
+
+            Dim Import_FileName As String = path
+
+            Dim fileExtension As String = IO.Path.GetExtension(Import_FileName)
+
+            conn.ConnectionString = "Provider=Microsoft.ACE.OLEDB.12.0;Data Source=" + Import_FileName + ";" + "Extended Properties='Excel 12.0 Xml;HDR=YES;'"
+
+            Using comm As New OleDbCommand()
+
+                comm.CommandText = "Select * from [" + sheetname + "$]"
+
+                comm.Connection = conn
+
+                Using da As New OleDbDataAdapter()
+
+                    da.SelectCommand = comm
+
+                    da.Fill(dt)
+
+                    Return dt
+
+                End Using
+            End Using
+        End Using
+    End Function
     Private Sub Button1_Click(sender As Object, e As EventArgs) Handles Button1.Click
         '
         '
         '
-
-        Dim x, y As Long
-        Dim pasteFileName As String
+        Dim errln As Integer = 0
+        Dim x, y As Integer
+        Dim jc As String = Nothing
         Dim store_name, fromDate, thruDate As String
         Dim objWord, objDoc, objExport As Document
         Dim ww As Integer = 0
@@ -64,24 +97,39 @@ Public Class Form1
         Dim zz As Integer = 0
         Dim daystotal As Integer = 0
         Dim progPcnt As Double = 0
-        Dim i As Integer = Nothing
-        Dim ii As Integer = Nothing
-        Dim iii As Integer = Nothing
+        Dim i As Integer = 0
+        Dim ii As Integer = 0
+        Dim iii As Integer = 0
+        Dim iiii As Integer = 0
+        Dim iiiii As Integer = 0
         Dim parm, pst As Worksheet
-        Dim d_jcode() As String = {"", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""}
-        Dim n_jcode() As String = {"", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""}
+        Dim d_jcode() As String = Nothing
+        Dim n_jcode() As String = Nothing
+        Dim d_station() As String = Nothing
+        Dim n_station() As String = Nothing
+        Dim d_start() As String = Nothing
+        Dim n_start() As String = Nothing
+        Dim d_end() As String = Nothing
+        Dim n_end() As String = Nothing
         Dim xDoc As String = Nothing
         Dim iDoc As String = Nothing
         Dim oDoc As String = Nothing
-        Dim d_emp() As String = {"", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""}
-        Dim n_emp() As String = {"", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""}
+        Dim d_emp() As String = Nothing
+        Dim n_emp() As String = Nothing
         Dim thisWb As Workbook = Nothing
         Dim copyWb As Workbook = Nothing
         Dim jobcodes As New Collection
-        Dim r As Long
+        Dim r As Integer = 0
         Dim rng As Microsoft.Office.Interop.Excel.Range
-        Dim date_row() As Integer = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
-        Dim shift_row(,) As VariantType = {"", "";"",""}
+        Dim date_row() As Integer = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+        Dim shift_row() As Integer = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+        Dim unit, businessDate, sales, shift, jobtitles, employees, startTime, endTime, station As Integer
+        Dim countAM As Integer = 0
+        Dim countPM As Integer = 0
+
+        Dim watch As New Stopwatch
+
+        watch.Start()
 
 
         'On Error GoTo errors
@@ -91,7 +139,7 @@ Public Class Form1
 
         Me.Cursor = Cursors.WaitCursor
 
-        Button1.Text = "Working... 0%"
+        Button1.Text = "Downloading..."
 
 
 
@@ -136,11 +184,9 @@ Public Class Form1
 
 
 
-        Button1.Text = $"Working... {wf.Text(progPcnt, "0")}%"
+        'Button1.Text = $"Working... {wf.Text(progPcnt, "0")}%"
 
-        'x = pst.Cells(1, pst.Columns.Count).End(XlDirection.xlToLeft).Column
-
-        y = pst.Cells(pst.Rows.Count, 1).End(XlDirection.xlUp).Row
+        'y = pst.Cells(pst.Rows.Count, 1).End(XlDirection.xlUp).Row
 
         parm.Range("name_FromDate").Value = Me.DateTimePicker1.Value
 
@@ -150,13 +196,54 @@ Public Class Form1
 
         thisWb.RefreshAll()
 
-        store_name = parm.Range("STORENAME").Value
+        thisWb.Save()
 
-        daystotal = parm.Range("DAYSTOTAL").Value
+        thisWb.Close()
+
+        app.Quit()
+
+
+
+        Dim dt = ReadExcelFile("DATA", sPath)
+
+        unit = dt.Columns(0).Ordinal
+
+        businessDate = dt.Columns(1).Ordinal
+
+        sales = dt.Columns(2).Ordinal
+
+        shift = dt.Columns(3).Ordinal
+
+        jobtitles = dt.Columns(4).Ordinal
+
+        employees = dt.Columns(5).Ordinal
+
+        startTime = dt.Columns(6).Ordinal
+
+        endTime = dt.Columns(7).Ordinal
+
+        station = dt.Columns(8).Ordinal
+
+
+        Dim pt = ReadExcelFile("PARAMETERS", sPath)
+
+        store_name = pt.Rows(0).ItemArray(3).ToString
+
+        daystotal = pt.Rows(0).ItemArray(4).ToString
 
         Dim dayStart As Date = Me.DateTimePicker1.Value
 
         Dim dayLast As Date = Me.DateTimePicker2.Value
+
+        y = dt.Rows.Count
+
+
+        watch.Stop()
+
+        Dim timerresult = Watch.ElapsedMilliseconds / 1000
+
+        MsgBox(y & " " & store_name & " " & daystotal & " " & timerresult)
+
 
 
         '        On Error Resume Next
@@ -169,6 +256,10 @@ Public Class Form1
 
 
 
+
+        'Me.Close()
+
+        'GoTo exitsub
 
 
         progPcnt = 6
@@ -229,24 +320,45 @@ Public Class Form1
         'ii is looping each row in the paste tab
 
         '''''''
-        '''
+
 
 
         ' populate an array containing row numbers which indicate the starting row number for each day in the report
+        ' where i is the value for the day index in the report
         '
-        '
-        i = 0
 
-        date_row(0) = 2
+        ' populate an array containing row numbers which indicate the starting row number for each PM shift in the report
+        ' where ii is the value for the day index in the report
 
 
-        For Each cell As Microsoft.Office.Interop.Excel.Range In pst.Range(pst.Cells(2, 1), pst.Cells(y, 1))
+        i = 1 ' iterate dates
+        ii = 0 ' iterate AM/PM splits
+        iii = 0
+        iiii = 0
+        iiiii = 0
+        Dim max_row As Integer = 0
+        Dim e_name As String
+        Dim next_e_name As String
+        ReDim d_jcode(y), n_jcode(y), d_emp(y), n_emp(y), d_station(y), n_station(y), d_start(y), n_start(y), d_end(y), n_end(y)
 
-            If cell.Value > pst.Cells(date_row(i - 1), 1).Value Then
+        For row_num As Integer = 1 To y - 1
 
-                date_row(i) = cell.Row
+
+
+
+            If Convert.ToDateTime(dt.Rows(row_num).Item(businessDate)) > Convert.ToDateTime(dt.Rows(row_num - 1).Item(businessDate)) Then
+
+                date_row(i) = row_num
 
                 i += 1
+
+            End If
+
+            If dt.Rows(row_num).Item(shift).ToString = "PM" And dt.Rows(row_num - 1).Item(shift).ToString = "AM" Then
+
+                shift_row(ii) = row_num
+
+                ii += 1
 
             End If
 
@@ -256,253 +368,314 @@ Public Class Form1
         '
 
 
-        For iii = 0 To (daystotal - 1)
+
+        errln = 372
+
+        For iii = 0 To (daystotal - 1) ' for each day of the week
+
+            i = 0
+
+            ii = 0
 
 
-            If ttls.Cells(2 + (iii * 9), 7).Value > 0 Then
+            If iii = (daystotal - 1) Then
+
+                max_row = (y - 1)
+
+            Else
+
+                max_row = (date_row(iii + 1) - 1)
+
+            End If
 
 
-                xx = 1
 
-                For i = 1 To 6
+            r = Int(date_row(iii))
 
-                    If ttls.Cells((3 + i + (iii * 9)), 3).Value <> 0 Then
+            For row_num = Int(date_row(iii)) To max_row
 
-                        d_jcode(xx) = ttls.Cells(3 + i + (iii * 9), 2).Value & " (" & ttls.Cells(3 + i + (iii * 9), 3).Value & ")"
+                If r > max_row Then
 
-                        xx += 1
+                    Continue For
+
+                End If
+
+                ' for each row in AM shift
+
+                If r < shift_row(iii) Then
+                    'populate AM job codes list
+                    jc = dt.Rows(r).Item(jobtitles).ToString
+
+                    On Error Resume Next
+                    jobcodes.Add("AM" & jc, "AM" & jc)
+                    '
+                    '
+                    'populate AM shift info
+                    d_jcode(i) = jc
+
+                    d_emp(i) = dt.Rows(r).Item(employees).ToString
+
+                    d_station(i) = dt.Rows(r).Item(station).ToString
+
+                    d_start(i) = Convert.ToDateTime(dt.Rows(r).Item(startTime)).ToString("h:mm tt")
+
+                    d_end(i) = Convert.ToDateTime(dt.Rows(r).Item(endTime)).ToString("h:mm tt")
+
+
+                    If dt.Rows(r).Item(employees).ToString = dt.Rows(r + 1).Item(employees).ToString And dt.Rows(r).Item(endTime).ToString = dt.Rows(r + 1).Item(startTime).ToString Then
+
+                        d_end(i) = Convert.ToDateTime(dt.Rows(r + 1).Item(endTime)).ToString("h:mm tt")
+
+                        d_station(i) = d_station(i) & " / " & dt.Rows(r + 1).Item(station).ToString
+
+                        r += 1
 
                     End If
 
-                Next i
+                    r += 1
+
+                    i += 1
+
+                End If
+                errln = 435
+                On Error GoTo errors
+
+                If r >= shift_row(iii) Then
+
+                    'populate PM job codes list
+                    jc = dt.Rows(r).Item(jobtitles).ToString
+
+                    On Error Resume Next
+                    jobcodes.Add("PM" & jc, "PM" & jc)
+                    ' 
+                    '
+                    'populate PM shift info
+                    n_jcode(ii) = jc
+
+                    n_emp(ii) = dt.Rows(r).Item(employees).ToString
+
+                    n_station(ii) = dt.Rows(r).Item(station).ToString
+
+                    n_start(ii) = Convert.ToDateTime(dt.Rows(r).Item(startTime)).ToString("h:mm tt")
+
+                    n_end(ii) = Convert.ToDateTime(dt.Rows(r).Item(endTime)).ToString("h:mm tt")
 
 
+                    If dt.Rows(r).Item(employees).ToString = dt.Rows(r + 1).Item(employees).ToString And dt.Rows(r).Item(endTime).ToString = dt.Rows(r + 1).Item(startTime).ToString Then
 
-                yy = 1
+                        n_end(ii) = Convert.ToDateTime(dt.Rows(r + 1).Item(endTime)).ToString("h:mm tt")
 
-                For i = 1 To 6
+                        n_station(ii) = n_station(ii) & " / " & dt.Rows(r + 1).Item(station).ToString
 
-                    If ttls.Cells(3 + i + (iii * 9), 6).Value <> 0 Then
-
-                        n_jcode(yy) = ttls.Cells(3 + i + (iii * 9), 5).Value & " (" & ttls.Cells(3 + i + (iii * 9), 6).Value & ")"
-
-                        yy += 1
+                        r += 1
 
                     End If
 
-                Next i
+                    r += 1
 
+                    ii += 1
 
-                '''''''''''
-                '''''''''''
-                '''''''''''
-                progPcnt += (30 / daystotal)
-
-                Button1.Text = $"Working... {wf.Text(progPcnt, "0")}%"
-
-                zz = 0
-
-                ww = 0
-
-                For i = 1 To 6
-
-
-                    If ttls.Cells(3 + i + (iii * 9), 3).Value <> 0 Then
-
-                        zz += 1
-
-                        d_emp(zz) = ""
-
-                        For ii = 2 To pst.Cells(pst.Rows.Count, 1).End(XlDirection.xlUp).Row
-
-                            If pst.Cells(ii, 4).Value = ttls.Cells(3 + i + (iii * 9), 2).Value _
-                                And pst.Cells(ii, 2).Value = "AM" _
-                                And pst.Cells(ii, 3).Value = ttls.Cells(2 + (iii * 9), 2).Value Then
-
-
-                                d_emp(zz) = d_emp(zz) & FlipNames(pst.Cells(ii, 5).Value) & " - " _
-                                    & wf.text(pst.Cells(ii, 6).Value, "[$-en-US]h:mmAM/PM;@") & "-" _
-                                    & wf.text(pst.Cells(ii, 7).Value, "[$-en-US]h:mmAM/PM;@") & vbCrLf
+                End If
+                errln = 474
+                On Error GoTo errors
+            Next
 
 
 
+
+            objDoc = wApp.Documents.Open(iDoc)
+
+
+            objDoc.Application.Visible = False
+
+
+            With objDoc
+                errln = 488
+                .Application.Selection.Find.Text = "<<STORE_NAME>>"
+                .Application.Selection.Find.Execute()
+                .Application.Selection.Text = store_name
+                .Application.Selection.EndOf()
+
+                .Application.Selection.Find.Text = "<<DAY>>"
+                .Application.Selection.Find.Execute()
+                .Application.Selection.Text = DateAdd("d", iii, dayStart).DayOfWeek.ToString
+                .Application.Selection.EndOf()
+
+                .Application.Selection.Find.Text = "<<DATE>>"
+                .Application.Selection.Find.Execute()
+                .Application.Selection.Text = DateAdd("d", iii, dayStart).ToShortDateString
+                .Application.Selection.EndOf()
+
+                .Application.Selection.Find.Text = "<<SALES_FORECAST>>"
+                .Application.Selection.Find.Execute()
+                .Application.Selection.Text = dt.Rows(date_row(iii)).Item(sales).ToString
+                .Application.Selection.EndOf()
+                errln = 508
+
+                countAM = 0
+
+                countPM = 0
+                On Error GoTo 0
+                For Each kvp As KeyValuePair(Of String, String) In jobcodes
+
+                    If Microsoft.VisualBasic.Left(kvp.Value, 2) = "AM" Then
+
+                        countAM += 1
+                    Else
+
+                        countPM += 1
+
+                    End If
+
+                Next
+                On Error GoTo errors
+                errln = 527
+
+                Dim emp As String = Nothing
+
+                For iiii = 1 To 8
+
+
+                    If iiii <= countAM Then
+
+
+                        .Application.Selection.Find.Execute(FindText:="<<D_JOB_CODE_" & CStr(i) & ">>", Wrap:=WdFindWrap.wdFindContinue)
+
+                        .Application.Selection.Text = Microsoft.VisualBasic.Right(jobcodes.Item(iiii).ToString, Len(jobcodes.Item(iiii).ToString) - 2)
+
+                        .Application.Selection.EndOf(WdUnits.wdLine)
+
+                        emp = Nothing
+
+                        For r = 0 To i
+
+
+
+                            If d_jcode(r) = Microsoft.VisualBasic.Right(jobcodes.Item(iiii).ToString, Len(jobcodes.Item(iiii).ToString) - 2) Then
+
+                                emp = emp & FlipNames(d_emp(r)) & " - " & d_start(r).ToString & "-" & d_end(r).ToString & " (" & d_station(r) & ")" & vbCrLf
 
                             End If
 
 
-                        Next ii
+                            .Application.Selection.Find.Execute(FindText:="<<D_EMP" & CStr(r) & ">>", Wrap:=WdFindWrap.wdFindContinue)
+
+                            .Application.Selection.Text = emp
+
+                            .Application.Selection.EndOf(WdUnits.wdLine)
+
+
+                        Next
+
+                    Else
+
+                        .Application.Selection.Find.Execute(FindText:="<<D_JOB_CODE_" & CStr(iiii) & ">>", Wrap:=WdFindWrap.wdFindContinue)
+
+                        .Application.Selection.Delete()
+
+                        .Application.Selection.EndOf(WdUnits.wdLine)
+
+
+                        .Application.Selection.Find.Execute(FindText:="<<D_EMP" & CStr(iiii) & ">>", Wrap:=WdFindWrap.wdFindContinue)
+
+                        .Application.Selection.Delete()
+
+                        .Application.Selection.EndOf(WdUnits.wdLine)
 
 
                     End If
-
-                    If ttls.Cells(3 + i + (iii * 9), 6).Value <> 0 Then
-
-                        ww += 1
-
-                        n_emp(ww) = ""
-
-                        For ii = 2 To pst.Cells(pst.Rows.Count, 1).End(XlDirection.xlUp).Row
-
-                            If pst.Cells(ii, 4).Value = ttls.Cells(3 + i + (iii * 9), 2).Value _
-                                And pst.Cells(ii, 2).Value = "PM" _
-                                And pst.Cells(ii, 3).Value = ttls.Cells(2 + (iii * 9), 2).Value Then
+                    errln = 582
+                    If iiii <= countPM Then
 
 
-                                n_emp(ww) = n_emp(ww) & FlipNames(pst.Cells(ii, 5).Value) & " - " _
-                                    & wf.text(pst.Cells(ii, 6).Value, "[$-en-US]h:mmAM/PM;@") & "-" _
-                                    & wf.Text(pst.Cells(ii, 7).Value, "[$-en-US]h:mmAM/PM;@") & vbCrLf
+                        .Application.Selection.Find.Execute(FindText:="<<N_JOB_CODE_" & CStr(i) & ">>", Wrap:=WdFindWrap.wdFindContinue)
+
+                        .Application.Selection.Text = Microsoft.VisualBasic.Right(jobcodes.Item(iiii).ToString, Len(jobcodes.Item(iiii).ToString) - 2)
+
+                        .Application.Selection.EndOf(WdUnits.wdLine)
+
+                        emp = Nothing
 
 
+                        For r = 0 To i
+
+                            If d_jcode(r) = Microsoft.VisualBasic.Right(jobcodes.Item(iiii).ToString, Len(jobcodes.Item(iiii).ToString) - 2) Then
+
+                                emp = emp & FlipNames(n_emp(r)) & " - " & n_start(r).ToString & "-" & n_end(r).ToString & " (" & n_station(r) & ")" & vbCrLf
 
                             End If
 
 
-                        Next ii
+                            .Application.Selection.Find.Execute(FindText:="<<N_EMP" & CStr(r) & ">>", Wrap:=WdFindWrap.wdFindContinue)
+
+                            .Application.Selection.Text = emp
+
+                            .Application.Selection.EndOf(WdUnits.wdLine)
+
+
+                        Next
+
+                    Else
+
+                        .Application.Selection.Find.Execute(FindText:="<<N_JOB_CODE_" & CStr(iiii) & ">>", Wrap:=WdFindWrap.wdFindContinue)
+
+                        .Application.Selection.Delete()
+
+                        .Application.Selection.EndOf(WdUnits.wdLine)
+
+
+                        .Application.Selection.Find.Execute(FindText:="<<N_EMP" & CStr(iiii) & ">>", Wrap:=WdFindWrap.wdFindContinue)
+
+                        .Application.Selection.Delete()
+
+                        .Application.Selection.EndOf(WdUnits.wdLine)
 
 
                     End If
 
-                    progPcnt += ((5) / daystotal)
-
-                    Button1.Text = $"Working... {wf.Text(progPcnt, "0")}%"
-
+                    errln = 631
+                Next iiii
 
 
-                Next i
+                .SaveAs(oDoc, WdSaveFormat.wdFormatDocumentDefault)
 
-                '''''''''''
-                '''''''''''
-                '''''''''''
+                .Close(SaveChanges:=False)
 
 
+            End With
+
+            errln = 642
+
+            With objExport
 
 
-                objDoc = wApp.Documents.Open(iDoc)
+                If iii = 0 Then
+
+                    .Content.Select()
+
+                End If
 
 
-                objDoc.Application.Visible = False
+                .Application.Selection.InsertFile(oDoc)
+
+                .Application.Selection.EndKey(WdUnits.wdStory)
+
+                My.Computer.FileSystem.DeleteFile(oDoc)
 
 
-                With objDoc
-
-                    .Application.Selection.Find.Text = "<<STORE_NAME>>"
-                    .Application.Selection.Find.Execute()
-                    .Application.Selection.Text = store_name
-                    .Application.Selection.EndOf()
-
-                    .Application.Selection.Find.Text = "<<DAY>>"
-                    .Application.Selection.Find.Execute()
-                    .Application.Selection.Text = ttls.Cells(3 + (iii * 9), 2).value
-                    .Application.Selection.EndOf()
-
-                    .Application.Selection.Find.Text = "<<DATE>>"
-                    .Application.Selection.Find.Execute()
-                    .Application.Selection.Text = ttls.Cells(2 + (iii * 9), 2).value
-                    .Application.Selection.EndOf()
-
-                    For i = 1 To 6
-
-                        If i <= xx - 1 Then
-
-                            '.Application.Selection.Find.Text = ("<<D_JOB_CODE_" & CStr(i) & ">>")
-                            .Application.Selection.Find.Execute(FindText:="<<D_JOB_CODE_" & CStr(i) & ">>", Wrap:=WdFindWrap.wdFindContinue)
-                            .Application.Selection.Text = d_jcode(i)
-                            .Application.Selection.EndOf(WdUnits.wdLine)
-
-                            '.Application.Selection.Find.Text = ("<<D_EMP" & CStr(i) & ">>")
-                            .Application.Selection.Find.Execute(FindText:="<<D_EMP" & CStr(i) & ">>", Wrap:=WdFindWrap.wdFindContinue)
-                            .Application.Selection.Text = d_emp(i)
-                            .Application.Selection.EndOf(WdUnits.wdLine)
-
-                        Else
-
-                            '.Application.Selection.Find.Text = ("<<D_JOB_CODE_" & CStr(i) & ">>")
-                            .Application.Selection.Find.Execute(FindText:="<<D_JOB_CODE_" & CStr(i) & ">>", Wrap:=WdFindWrap.wdFindContinue)
-                            .Application.Selection.Delete()
-                            .Application.Selection.EndOf(WdUnits.wdLine)
-
-                            '.Application.Selection.Find.Text = ("<<D_EMP" & CStr(i) & ">>")
-                            .Application.Selection.Find.Execute(FindText:="<<D_EMP" & CStr(i) & ">>", Wrap:=WdFindWrap.wdFindContinue)
-                            .Application.Selection.Delete()
-                            .Application.Selection.EndOf(WdUnits.wdLine)
+                If iii < daystotal Then
 
 
-                        End If
-
-                        If i <= yy - 1 Then
-
-                            '.Application.Selection.Find.Text = ("<<N_JOB_CODE_" & CStr(i) & ">>")
-                            .Application.Selection.Find.Execute(FindText:="<<N_JOB_CODE_" & CStr(i) & ">>", Wrap:=WdFindWrap.wdFindContinue)
-                            .Application.Selection.Text = n_jcode(i)
-                            .Application.Selection.EndOf(WdUnits.wdLine)
-
-
-                            '.Application.Selection.Find.Text = ("<<N_EMP" & CStr(i) & ">>")
-                            .Application.Selection.Find.Execute(FindText:="<<N_EMP" & CStr(i) & ">>", Wrap:=WdFindWrap.wdFindContinue)
-                            .Application.Selection.Text = n_emp(i)
-                            .Application.Selection.EndOf(WdUnits.wdLine)
-
-
-                        Else
-
-                            '.Application.Selection.Find.Text = ("<<N_JOB_CODE_" & CStr(i) & ">>")
-                            .Application.Selection.Find.Execute(FindText:="<<N_JOB_CODE_" & CStr(i) & ">>", Wrap:=WdFindWrap.wdFindContinue)
-                            .Application.Selection.Delete()
-                            .Application.Selection.EndOf(WdUnits.wdLine)
-
-
-                            '.Application.Selection.Find.Text = ("<<N_EMP" & CStr(i) & ">>")
-                            .Application.Selection.Find.Execute(FindText:="<<N_EMP" & CStr(i) & ">>", Wrap:=WdFindWrap.wdFindContinue)
-                            .Application.Selection.Delete()
-                            .Application.Selection.EndOf(WdUnits.wdLine)
-
-
-                        End If
-
-                    Next i
-
-
-                    .SaveAs(oDoc, WdSaveFormat.wdFormatDocumentDefault)
-
-                    .Close(SaveChanges:=False)
-
-
-                End With
-
-
-
-                With objExport
-
-
-                    If iii = 0 Then
-
-                        .Content.Select()
-
-                    End If
-
-
-                    .Application.Selection.InsertFile(oDoc)
+                    .Application.Selection.InsertBreak(WdBreakType.wdPageBreak)
 
                     .Application.Selection.EndKey(WdUnits.wdStory)
 
-                    My.Computer.FileSystem.DeleteFile(oDoc)
+
+                End If
 
 
-                    If ttls.Cells(2 + ((iii + 1) * 9), 7).value > 0 Then
-
-
-                        .Application.Selection.InsertBreak(WdBreakType.wdPageBreak)
-
-                        .Application.Selection.EndKey(WdUnits.wdStory)
-
-
-                    End If
-
-
-                End With
-
-
-            End If
+            End With
+            errln = 673
 
             progPcnt += ((30) / daystotal)
 
@@ -516,7 +689,7 @@ Public Class Form1
         Button1.Text = $"Working... {wf.Text(progPcnt, "0")}%"
 
 
-        objExport.ExportAsFixedFormat(TextBox2.Text, WdExportFormat.wdExportFormatPDF, OpenAfterExport:=True)
+        ' objExport.ExportAsFixedFormat(TextBox2.Text, WdExportFormat.wdExportFormatPDF, OpenAfterExport:=True)
 
         objExport.Close(False)
 
@@ -524,7 +697,7 @@ Public Class Form1
 
         My.Computer.FileSystem.DeleteFile(iDoc)
 
-        Me.Activate()
+        'Me.Activate()
 
 
 
@@ -535,18 +708,6 @@ exitsub:
         Me.UseWaitCursor = False
 
         Me.Cursor = Cursors.Default
-
-
-
-        app.DisplayAlerts = True
-
-        app.ScreenUpdating = True
-
-        app.EnableEvents = True
-
-        app.Calculation = XlCalculation.xlCalculationAutomatic
-
-        thisWb.Close(SaveChanges:=False)
 
 
         wApp.ScreenUpdating = True
@@ -571,26 +732,13 @@ exitsub:
 
 errors:
 
-        On Error Resume Next
+        'On Error Resume Next
 
         Me.UseWaitCursor = False
 
         Me.Cursor = Cursors.Default
 
         Button1.Text = "GENERATE CRIB SHEET"
-
-        app.DisplayAlerts = True
-
-        app.ScreenUpdating = True
-
-        app.EnableEvents = True
-
-        app.Calculation = XlCalculation.xlCalculationAutomatic
-
-        thisWb.Close(SaveChanges:=False)
-
-
-
 
 
 
@@ -611,12 +759,10 @@ errors:
         wApp.Options.DisableFeaturesbyDefault = False
 
 
-        MsgBox("Yikes dude, looks like something went hecka wrong. Please email mitch@rocksolidrestaurants.com right away with any details, and make sure to attach this excel file in your message. " & Err.Description)
+        MsgBox("Yikes dude, looks like something went hecka wrong. Please email mitch@rocksolidrestaurants.com right away with any details, and make sure to attach this excel file in your message. " & Err.Description & " Line #" & errln & " Err #" & Err.Number)
 
     End Sub
     Private Sub Form1_Closing(sender As Object, e As CancelEventArgs) Handles Me.Closing
-
-        app.Quit()
 
         wApp.Quit(WdSaveOptions.wdDoNotSaveChanges)
 
@@ -633,6 +779,8 @@ errors:
         Me.DateTimePicker1.Value = DateAdd("d", 1, Today())
 
         Me.DateTimePicker2.Value = DateAdd("d", 1, Today())
+
+        Me.ComboBox1.Text = "Bonney Lake"
 
     End Sub
 
