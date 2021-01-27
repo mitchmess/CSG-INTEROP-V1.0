@@ -127,12 +127,8 @@ Public Class Form1
         Dim countPM As Integer = 0
         Dim max_days As Integer = 0
 
-        'Dim watch As New Stopwatch
 
-        'Watch.Start()
-
-
-        'On Error GoTo errors
+        On Error GoTo errors
 
 
         Me.UseWaitCursor = True
@@ -190,17 +186,27 @@ Public Class Form1
 
         parm.Range("STORENAME").Value = Me.ComboBox1.Text
 
+
+        thisWb.Queries.FastCombine = True
+
         thisWb.RefreshAll()
 
-        thisWb.Save()
+        Dim dt = ReadExcelFile("DATA", sPath)
 
-        thisWb.Close()
+        Dim pt = ReadExcelFile("PARAMETERS", sPath)
+
+        thisWb.Close(SaveChanges:=False)
+
+
+        app.DisplayAlerts = True
+
+        app.ScreenUpdating = True
+
+        app.EnableEvents = True
+
 
         app.Quit()
 
-
-
-        Dim dt = ReadExcelFile("DATA", sPath)
 
         unit = dt.Columns(0).Ordinal
 
@@ -221,8 +227,6 @@ Public Class Form1
         station = dt.Columns(8).Ordinal
 
 
-        Dim pt = ReadExcelFile("PARAMETERS", sPath)
-
         store_name = pt.Rows(0).ItemArray(3).ToString
 
         daystotal = pt.Rows(0).ItemArray(4).ToString
@@ -232,30 +236,6 @@ Public Class Form1
         Dim dayLast As Date = Me.DateTimePicker2.Value
 
         y = dt.Rows.Count - 1
-
-
-        'watch.Stop()
-
-        'Dim timerresult = Watch.ElapsedMilliseconds / 1000
-
-        'MsgBox(y & " " & store_name & " " & daystotal & " " & timerresult)
-
-
-
-        '        On Error Resume Next
-        '       For Each cell As Microsoft.Office.Interop.Excel.Range In pst.Range(pst.Cells(2, 4), pst.Cells(y, 4))
-        '
-        '     jobcodes.Add(cell.Value, cell.Value)
-        '
-        ' Next
-        'On Error GoTo errors
-
-
-
-
-        'Me.Close()
-
-        'GoTo exitsub
 
 
         progPcnt = 6
@@ -270,7 +250,7 @@ Public Class Form1
 
         objWord = wApp.Documents.Open(sPath)
 
-        'objWord.Application.Visible = False
+        objWord.Application.Visible = False
 
 
         progPcnt = 8
@@ -295,7 +275,7 @@ Public Class Form1
 
         objExport = wApp.Documents.Open(xDoc)
 
-        'objExport.Application.Visible = False
+        objExport.Application.Visible = False
 
 
         progPcnt = 9
@@ -424,7 +404,7 @@ Public Class Form1
                         If Not jobcodesAM.TryGetValue(jc, iiiii) Then
                             jobcodesAM(jc) = iiiii
                             iiiii += 1
-                            On Error GoTo 0
+                            On Error GoTo errors
                         End If
                         '
                         '
@@ -482,7 +462,7 @@ Public Class Form1
                         If Not jobcodesPM.TryGetValue(jc, iiiii) Then
                             jobcodesPM(jc) = iiiii
                             iiiii += 1
-                            On Error GoTo 0
+                            On Error GoTo errors
                         End If
                         ' 
                         '
@@ -549,7 +529,7 @@ Public Class Form1
             objDoc = wApp.Documents.Open(iDoc)
 
 
-            'objDoc.Application.Visible = False
+            objDoc.Application.Visible = False
 
 
             With objDoc
@@ -814,7 +794,7 @@ exitsub:
 
 errors:
 
-        'On Error Resume Next
+        On Error Resume Next
 
         Me.UseWaitCursor = False
 
