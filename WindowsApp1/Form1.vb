@@ -1,17 +1,62 @@
 ﻿Option Explicit On
-Imports System.ComponentModel
-Imports System.Data.OleDb
-Imports System.Linq
+Imports Newtonsoft.Json
+Imports RestSharp
 Imports System.Runtime.InteropServices
 Imports Microsoft.Office.Interop.Excel
 Imports Microsoft.Office.Interop.Word
 Public Class Form1
 
-    ReadOnly app As Microsoft.Office.Interop.Excel.Application = New Microsoft.Office.Interop.Excel.Application
+    Dim app As Microsoft.Office.Interop.Excel.Application = New Microsoft.Office.Interop.Excel.Application
 
-    ReadOnly wApp As Microsoft.Office.Interop.Word.Application = New Microsoft.Office.Interop.Word.Application
+    Dim wApp As Microsoft.Office.Interop.Word.Application = New Microsoft.Office.Interop.Word.Application
 
-    Private ReadOnly wf = app.WorksheetFunction
+
+
+    'Private ReadOnly wf = app.WorksheetFunction
+    Function GetRequest(unitID As String, FromDate As String, ThruDate As String)
+
+        Dim dat As Data.DataTable
+
+        Dim client As New RestClient("https://dc01.rmdatacentral.com/Portal1242/api/api/v2/Reports/b05c3f07-ecd7-455a-a460-e96d05376ac5/Result?@UnitID=" & unitID & "&@FromDate=" & Convert.ToDateTime(FromDate).ToString("MM-dd-yyyy") & "&@ThruDate=" & Convert.ToDateTime(ThruDate).ToString("MM-dd-yyyy"))
+
+        client.Timeout = -1
+
+        Dim request As RestRequest = New RestRequest(Method.GET)
+
+        request.AddHeader("Accept", "application/json")
+
+        request.AddHeader("DCKey", "v3q8upr9eNm0TsQHJz3AcXnG1lhCpNSJW8EnXNSGR343-yJcKB8eUKYJeLLwr5YeZ50")
+
+        Dim response As IRestResponse = client.Execute(request)
+
+        Dim _ds As DataSet
+
+        _ds = JsonConvert.DeserializeObject(Of DataSet)(response.Content)
+
+        Dim _dt As Data.DataTable = _ds.Tables.Item(0)
+
+        Dim __dt As Data.DataSet = _dt.Rows(5).Table.DataSet
+
+        Dim ___dt As Data.DataTable = __dt.Tables.Item(0)
+
+        dat = ___dt.Rows(5).Item(2)
+
+        'Dim _dat As New Data.DataTable
+
+        '_dat.Columns.Add(dat.Columns.Item(dat.Columns.IndexOf("UnitName")))
+        '_dat.Columns.Add(dat.Columns.Item(dat.Columns.IndexOf("BusinessDate")))
+        '_dat.Columns.Add(dat.Columns.Item(dat.Columns.IndexOf("Forecast")))
+        '_dat.Columns.Add(dat.Columns.Item(dat.Columns.IndexOf("Shift")))
+        '_dat.Columns.Add(dat.Columns.Item(dat.Columns.IndexOf("JobName")))
+        '_dat.Columns.Add(dat.Columns.Item(dat.Columns.IndexOf("EmployeeName")))
+        '_dat.Columns.Add(dat.Columns.Item(dat.Columns.IndexOf("StartTime")))
+        '_dat.Columns.Add(dat.Columns.Item(dat.Columns.IndexOf("EndTime")))
+        '_dat.Columns.Add(dat.Columns.Item(dat.Columns.IndexOf("StationName")))
+
+
+        Return dat
+
+    End Function
     Function FlipNames(MyString As Object)
         '
         '
@@ -23,64 +68,34 @@ Public Class Form1
         Dim name As String
 
 
-        If InStr(1, MyString, ", ") Then
+        'If InStr(1, MyString, ", ") Then
 
 
-            lastname = Microsoft.VisualBasic.Left(MyString, wf.Find(", ", MyString) - 1)
+        lastname = Microsoft.VisualBasic.Left(MyString, InStr(MyString, ",") - 1)
 
-            firstname = Microsoft.VisualBasic.Right(MyString, Len(MyString) - wf.Find(", ", MyString) - 1)
+        firstname = Microsoft.VisualBasic.Right(MyString, Len(MyString) - InStr(MyString, ",") - 1)
 
-            name = firstname & " " & lastname
+        name = firstname & " " & lastname
 
-            FlipNames = Trim(name)
-
-
-        Else
+        FlipNames = Trim(name)
 
 
-            firstname = Microsoft.VisualBasic.Left(MyString, wf.Find(" ", MyString))
-
-            lastname = Microsoft.VisualBasic.Right(MyString, Len(MyString) - wf.Find(" ", MyString))
-
-            name = lastname & ", " & firstname
-
-            FlipNames = Trim(name)
+        'Else
 
 
-        End If
+        'firstname = Microsoft.VisualBasic.Left(MyString, InStr(" ", MyString))
+
+        '    lastname = Microsoft.VisualBasic.Right(MyString, Len(MyString) - InStr(" ", MyString))
+
+        '    name = lastname & ", " & firstname
+
+        '    FlipNames = Trim(name)
 
 
-    End Function
-    Private Function ReadExcelFile(sheetname As String, path As String) As Data.DataTable
+        ' End If
 
+        Return FlipNames
 
-        Using conn As New OleDb.OleDbConnection()
-
-            Dim dt As New Data.DataTable
-
-            Dim Import_FileName As String = path
-
-            Dim fileExtension As String = IO.Path.GetExtension(Import_FileName)
-
-            conn.ConnectionString = "Provider=Microsoft.ACE.OLEDB.12.0;Data Source=" + Import_FileName + ";" + "Extended Properties='Excel 12.0 Xml;HDR=YES;'"
-
-            Using comm As New OleDbCommand()
-
-                comm.CommandText = "Select * from [" + sheetname + "$]"
-
-                comm.Connection = conn
-
-                Using da As New OleDbDataAdapter()
-
-                    da.SelectCommand = comm
-
-                    da.Fill(dt)
-
-                    Return dt
-
-                End Using
-            End Using
-        End Using
     End Function
     Private Sub Button1_Click(sender As Object, e As EventArgs) Handles Button1.Click
         '
@@ -145,8 +160,6 @@ Public Class Form1
 
         thisWb = app.Workbooks.Open(sPath)
 
-        pst = thisWb.Worksheets("DATA")
-
         parm = thisWb.Worksheets("PARAMETERS")
 
 
@@ -186,17 +199,13 @@ Public Class Form1
 
         parm.Range("STORENAME").Value = Me.ComboBox1.Text
 
+        daystotal = parm.Range("DaysTotal").Value
 
-        thisWb.Queries.FastCombine = True
 
-        thisWb.RefreshAll()
+        Dim dtab As Data.DataTable = GetRequest(parm.Range("name_UnitID").Value, Me.DateTimePicker1.Value, Me.DateTimePicker2.Value)
 
-        Dim dt = ReadExcelFile("DATA", sPath)
-
-        Dim pt = ReadExcelFile("PARAMETERS", sPath)
 
         thisWb.Close(SaveChanges:=False)
-
 
         app.DisplayAlerts = True
 
@@ -204,32 +213,38 @@ Public Class Form1
 
         app.EnableEvents = True
 
-
         app.Quit()
 
+        Dim dv As New DataView(dtab)
 
-        unit = dt.Columns(0).Ordinal
+        dv.Sort = "BusinessDate ASC, Shift ASC, JobName ASC, EmployeeName ASC, StartTime ASC"
 
-        businessDate = dt.Columns(1).Ordinal
+        Dim dt As Data.DataTable = dv.ToTable
 
-        sales = dt.Columns(2).Ordinal
+        'DataGridView1.DataSource = dt
 
-        shift = dt.Columns(3).Ordinal
+        unit = dt.Columns.IndexOf("UnitName")
 
-        jobtitles = dt.Columns(4).Ordinal
+        businessDate = dt.Columns.IndexOf("businessDate")
 
-        employees = dt.Columns(5).Ordinal
+        sales = dt.Columns.IndexOf("Forecast")
 
-        startTime = dt.Columns(6).Ordinal
+        shift = dt.Columns.IndexOf("Shift")
 
-        endTime = dt.Columns(7).Ordinal
+        jobtitles = dt.Columns.IndexOf("JobName")
 
-        station = dt.Columns(8).Ordinal
+        employees = dt.Columns.IndexOf("EmployeeName")
+
+        startTime = dt.Columns.IndexOf("StartTime")
+
+        endTime = dt.Columns.IndexOf("EndTime")
+
+        station = dt.Columns.IndexOf("StationName")
 
 
-        store_name = pt.Rows(0).ItemArray(3).ToString
+        store_name = Me.ComboBox1.Text
 
-        daystotal = pt.Rows(0).ItemArray(4).ToString
+
 
         Dim dayStart As Date = Me.DateTimePicker1.Value
 
@@ -240,7 +255,7 @@ Public Class Form1
 
         progPcnt = 6
 
-        Button1.Text = $"Working... {wf.Text(progPcnt, "0")}%"
+        Button1.Text = $"Working... {Format(progPcnt, "0")}%"
 
 
 
@@ -255,7 +270,7 @@ Public Class Form1
 
         progPcnt = 8
 
-        Button1.Text = $"Working... {wf.Text(progPcnt, "0")}%"
+        Button1.Text = $"Working... {Format(progPcnt, "0")}%"
 
 
         iDoc = My.Computer.FileSystem.GetTempFileName()
@@ -280,7 +295,7 @@ Public Class Form1
 
         progPcnt = 9
 
-        Button1.Text = $"Working... {wf.Text(progPcnt, "0")}%"
+        Button1.Text = $"Working... {Format(progPcnt, "0")}%"
 
 
         '''''''
@@ -355,9 +370,9 @@ Public Class Form1
         'max_row -= 1
 
 
-        errln = 372
 
         Dim jobcodesAM As Dictionary(Of String, Integer)
+
         Dim jobcodesPM As Dictionary(Of String, Integer)
 
 
@@ -374,6 +389,7 @@ Public Class Form1
             iiiii = 1
 
             jobcodesAM = New Dictionary(Of String, Integer)
+
             jobcodesPM = New Dictionary(Of String, Integer)
 
 
@@ -386,6 +402,10 @@ Public Class Form1
 
 
             r = date_row(iii)
+
+            progPcnt += ((30) / daystotal)
+
+            Button1.Text = $"Working... {Format(progPcnt, "0")}%"
 
             For row_num = date_row(iii) To max_row
 
@@ -422,26 +442,29 @@ Public Class Form1
 
                         If dt.Rows(r).Item(employees).ToString = dt.Rows(r + 1).Item(employees).ToString And dt.Rows(r).Item(endTime).ToString = dt.Rows(r + 1).Item(startTime).ToString And dt.Rows(r).Item(jobtitles).ToString = dt.Rows(r + 1).Item(jobtitles).ToString Then
 
+                            Do Until Not (dt.Rows(r).Item(employees).ToString = dt.Rows(r + 1).Item(employees).ToString And dt.Rows(r).Item(endTime).ToString = dt.Rows(r + 1).Item(startTime).ToString And dt.Rows(r).Item(jobtitles).ToString = dt.Rows(r + 1).Item(jobtitles).ToString)
 
-                            d_end(i) = Convert.ToDateTime(dt.Rows(r + 1).Item(endTime)).ToString("h:mmtt")
+                                d_end(i) = Convert.ToDateTime(dt.Rows(r + 1).Item(endTime)).ToString("h:mmtt")
 
 
-                            If dt.Rows(r + 1).Item(station).ToString <> "" Then
+                                If dt.Rows(r + 1).Item(station).ToString <> "" Then
 
-                                If d_station(i) <> "" Then
+                                    If d_station(i) <> "" Then
 
-                                    d_station(i) = d_station(i) & "/" & dt.Rows(r + 1).Item(station).ToString
+                                        d_station(i) = d_station(i) & "/" & dt.Rows(r + 1).Item(station).ToString
 
-                                Else
+                                    Else
 
-                                    d_station(i) = dt.Rows(r + 1).Item(station).ToString
+                                        d_station(i) = dt.Rows(r + 1).Item(station).ToString
+
+                                    End If
 
                                 End If
 
-                            End If
 
+                                r += 1
 
-                            r += 1
+                            Loop
 
                         End If
 
@@ -477,11 +500,10 @@ Public Class Form1
 
                         n_end(ii) = Convert.ToDateTime(dt.Rows(r).Item(endTime)).ToString("h:mmtt")
 
+                        Do While r < y
 
-                        If r < y Then
+                            If (dt.Rows(r).Item(employees).ToString = dt.Rows(r + 1).Item(employees).ToString And dt.Rows(r).Item(endTime).ToString = dt.Rows(r + 1).Item(startTime).ToString And dt.Rows(r).Item(jobtitles).ToString = dt.Rows(r + 1).Item(jobtitles).ToString) Then
 
-
-                            If dt.Rows(r).Item(employees).ToString = dt.Rows(r + 1).Item(employees).ToString And dt.Rows(r).Item(endTime).ToString = dt.Rows(r + 1).Item(startTime).ToString And dt.Rows(r).Item(jobtitles).ToString = dt.Rows(r + 1).Item(jobtitles).ToString Then
 
                                 n_end(ii) = Convert.ToDateTime(dt.Rows(r + 1).Item(endTime)).ToString("h:mmtt")
 
@@ -489,14 +511,14 @@ Public Class Form1
                                 If dt.Rows(r + 1).Item(station).ToString <> "" Then
 
 
-                                    If n_station(i) <> "" Then
+                                    If n_station(ii) <> "" Then
 
 
                                         n_station(ii) = n_station(ii) & "/" & dt.Rows(r + 1).Item(station).ToString
 
                                     Else
 
-                                        n_station(i) = dt.Rows(r + 1).ItemArray(station).ToString
+                                        n_station(ii) = dt.Rows(r + 1).Item(station).ToString
 
 
                                     End If
@@ -506,10 +528,23 @@ Public Class Form1
 
                                 r += 1
 
+                            Else
+
+                                Exit Do
+
                             End If
 
 
+                        Loop
+
+
+
+
+
                         End If
+
+
+
 
 
                         r += 1
@@ -520,10 +555,13 @@ Public Class Form1
                     End If
 
 
-                End If
+
 
             Next
 
+            progPcnt += ((30) / daystotal)
+
+            Button1.Text = $"Working... {Format(progPcnt, "0")}%"
 
 
             objDoc = wApp.Documents.Open(iDoc)
@@ -551,7 +589,7 @@ Public Class Form1
 
                 .Application.Selection.Find.Text = "<<SALES_FORECAST>>"
                 .Application.Selection.Find.Execute()
-                .Application.Selection.Text = Format(dt.Rows(date_row(iii)).Item(sales), "0,000.00")
+                .Application.Selection.Text = Format(dt.Rows(date_row(iii)).Item(sales), "N")
                 .Application.Selection.EndOf()
 
                 countAM = jobcodesAM.Count - 1
@@ -706,8 +744,6 @@ Public Class Form1
 
             End With
 
-            errln = 642
-
             With objExport
 
 
@@ -739,19 +775,26 @@ Public Class Form1
             End With
 
 
-            progPcnt += ((90) / daystotal)
+            progPcnt += ((30) / daystotal)
 
-            Button1.Text = $"Working... {wf.Text(progPcnt, "0")}%"
+            Button1.Text = $"Working... {Format(progPcnt, "0")}%"
 
 
         Next iii
 
         progPcnt = 99
 
-        Button1.Text = $"Working... {wf.Text(progPcnt, "0")}%"
+        Button1.Text = $"Working... {Format(progPcnt, "0")}%"
 
+        If daystotal = 1 Then
 
-        objExport.ExportAsFixedFormat(IO.Directory.GetCurrentDirectory, WdExportFormat.wdExportFormatPDF, OpenAfterExport:=True)
+            objExport.ExportAsFixedFormat(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) & "/Crib_Sheet_" & Convert.ToDateTime(Me.DateTimePicker1.Value).ToString("M.dd") & ".pdf", WdExportFormat.wdExportFormatPDF, OpenAfterExport:=True)
+
+        Else
+
+            objExport.ExportAsFixedFormat(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) & "/Crib_Sheet_" & Convert.ToDateTime(Me.DateTimePicker1.Value).ToString("M.dd") & "_" & Convert.ToDateTime(Me.DateTimePicker2.Value).ToString("M.dd") & ".pdf", WdExportFormat.wdExportFormatPDF, OpenAfterExport:=True)
+
+        End If
 
         objExport.Close(False)
 
@@ -821,7 +864,7 @@ errors:
         wApp.Options.DisableFeaturesbyDefault = False
 
 
-        MsgBox("Yikes dude, looks like something went hecka wrong. Please email mitch@rocksolidrestaurants.com right away with any details, and make sure to attach this excel file in your message. " & Err.Description & " Line #" & errln & " Err #" & Err.Number)
+        MsgBox("Yikes dude, looks like something went hecka wrong. Please email mitch@rocksolidrestaurants.com right away with any details, and make sure to attach this excel file in your message. " & Err.Description & " Line #" & Err.Erl & " Err #" & Err.Number)
 
     End Sub
     Private Sub Form1_Closed(sender As Object, e As EventArgs) Handles Me.Closing
@@ -843,6 +886,12 @@ errors:
         Me.DateTimePicker2.Value = DateAdd("d", 1, Today())
 
         Me.ComboBox1.Text = "Bonney Lake"
+
+        'Dim dtab As Data.DataTable = GetRequest(11, Me.DateTimePicker1.Value, Me.DateTimePicker2.Value)
+
+        'dtab.DefaultView.Sort = "BusinessDate ASC, Shift ASC, EmployeeName ASC, StartTime ASC"
+
+        'DataGridView1.DataSource = dtab.DefaultView.ToTable
 
     End Sub
 

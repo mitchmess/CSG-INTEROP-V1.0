@@ -30,6 +30,8 @@ Partial Class Form1
         Me.DateTimePicker2 = New System.Windows.Forms.DateTimePicker()
         Me.DateTimePicker1 = New System.Windows.Forms.DateTimePicker()
         Me.ComboBox1 = New System.Windows.Forms.ComboBox()
+        Me.DataGridView1 = New System.Windows.Forms.DataGridView()
+        CType(Me.DataGridView1, System.ComponentModel.ISupportInitialize).BeginInit()
         Me.SuspendLayout()
         '
         'Button1
@@ -106,6 +108,18 @@ Partial Class Form1
         Me.ComboBox1.TabIndex = 10
         Me.ComboBox1.TabStop = False
         '
+        'DataGridView1
+        '
+        Me.DataGridView1.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize
+        Me.DataGridView1.Enabled = False
+        Me.DataGridView1.Location = New System.Drawing.Point(12, 91)
+        Me.DataGridView1.Name = "DataGridView1"
+        Me.DataGridView1.RowHeadersWidth = 51
+        Me.DataGridView1.RowTemplate.Height = 24
+        Me.DataGridView1.Size = New System.Drawing.Size(876, 381)
+        Me.DataGridView1.TabIndex = 11
+        Me.DataGridView1.Visible = False
+        '
         'Form1
         '
         Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.None
@@ -113,6 +127,7 @@ Partial Class Form1
         Me.BackgroundImage = Global.WindowsApp1.My.Resources.Resources.LOGO_HOPS_N_DROPS_square
         Me.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Zoom
         Me.ClientSize = New System.Drawing.Size(900, 591)
+        Me.Controls.Add(Me.DataGridView1)
         Me.Controls.Add(Me.ComboBox1)
         Me.Controls.Add(Me.DateTimePicker2)
         Me.Controls.Add(Me.DateTimePicker1)
@@ -130,6 +145,7 @@ Partial Class Form1
         Me.Name = "Form1"
         Me.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen
         Me.Text = "CRIB SHEET GENERATOR"
+        CType(Me.DataGridView1, System.ComponentModel.ISupportInitialize).EndInit()
         Me.ResumeLayout(False)
 
     End Sub
@@ -141,4 +157,5 @@ Partial Class Form1
     Friend WithEvents DateTimePicker2 As DateTimePicker
     Friend WithEvents DateTimePicker1 As DateTimePicker
     Friend WithEvents ComboBox1 As ComboBox
+    Friend WithEvents DataGridView1 As DataGridView
 End Class
